@@ -244,68 +244,66 @@ class JsonReader(FileReader):
     """
     Reads networks from a JSON file
     Example:
-        [
-          {"first": "192.168.12.0", "last": "192.168.12.255"},
-          {"first": "172.17.0.0", "last": "172.17.0.2"},
-          {"network": "10.0.0.0/8"},
-          {"first": "172.16.0.0", "count": 128},
-          {"address": "192.168.1.1"},
-          {"network": "192.168.10.0/24"}
-        ]
+        {
+          "ipv4": [
+            "192.168.12.0-192.168.12.255",
+            "172.17.0.0-172.17.0.2",
+            "10.0.0.0/8",
+            "172.16.0.0*128",
+            "192.168.1.1",
+            "192.168.10.0/24"
+          ]
+        }
     """
+    
+    def __init__(self, file, paths=None):
+        if paths is None:
+            paths = ['ipv4', 'ipv6']
+        self.paths = paths
+        super().__init__(file)
     
     def __iter__(self):
         with open(self.file, 'r') as file:
-            data = json.load(file)
-            for item in data:
-                if 'address' in item:
-                    networks = get_from_ip_network(item['address'])
-                elif 'network' in item:
-                    networks = get_from_ip_network(item['network'])
-                elif 'last' in item:
-                    networks = list(summarize_address_range(ip_address(item['first']), ip_address(item['last'])))
-                elif 'count' in item:
-                    networks = list(summarize_address_range(ip_address(item['first']),
-                                                            ip_address(item['first']) + int(item['count']) - 1))
-                else:
-                    continue
-                for network in networks:
-                    yield network
+            data_js = json.load(file)
+            for path in self.paths:
+                if has_attr_path(data_js, path.split('.')):
+                    data = get_attr_path(data_js, path.split('.'))
+                    for item in data:
+                        networks = get_from_string(item.strip())
+                        for network in networks:
+                            yield network
 
 
 class YamlReader(FileReader):
     """
     Reads networks from a YAML file
     Example:
-        - first: 192.168.12.0
-          last: 192.168.12.255
-        - first: 172.17.0.0
-          last: 172.17.0.2
-        - network: 10.0.0.0/8
-        - first: 172.16.0.0
-          count: 128
-        - address: 192.168.1.1
-        - network: 192.168.10.0/24
-        - network: 192.168.11.0/255.255.255.0
+        ipv4:
+          - "192.168.12.0-192.168.12.255"
+          - "172.17.0.0-172.17.0.3"
+          - "10.0.0.0/8"
+          - "172.16.0.0*128"
+          - "192.168.1.1"
+          - "192.168.10.0/24"
+          - "192.168.11.0/255.255.255.0"
     """
+    
+    def __init__(self, file, paths=None):
+        if paths is None:
+            paths = ['ipv4', 'ipv6']
+        self.paths = paths
+        super().__init__(file)
     
     def __iter__(self):
         with open(self.file, 'r') as file:
-            data = yaml.safe_load(file)
-            for item in data:
-                if 'address' in item:
-                    networks = get_from_ip_network(item['address'])
-                elif 'network' in item:
-                    networks = get_from_ip_network(item['network'])
-                elif 'last' in item:
-                    networks = list(summarize_address_range(ip_address(item['first']), ip_address(item['last'])))
-                elif 'count' in item:
-                    networks = list(summarize_address_range(ip_address(item['first']),
-                                                            ip_address(item['first']) + int(item['count']) - 1))
-                else:
-                    continue
-                for network in networks:
-                    yield network
+            data_yml = yaml.safe_load(file)
+            for path in self.paths:
+                if path in data_yml:
+                    data = data_yml[path]
+                    for item in data:
+                        networks = get_from_string(item.strip())
+                        for network in networks:
+                            yield network
 
 
 class AddIPNetwork(argparse.Action):
@@ -382,6 +380,32 @@ def print_networks(networks, types):
             print(f'  * {types[attr]}: {",".join([str(net) for net in nets])}')
 
 
+def has_attr_path(obj, attrs):
+    """
+    Check if the object has the attributes from the list
+    Example: to check if the object has the attributes path 'top.data.value' do:
+        has_attr_path(obj, ['top', 'data', 'value'])
+    :param obj: The object to check
+    :param attrs: The list of attributes to check
+    :return: True if the object has the attributes, False otherwise
+    """
+    attr = attrs.pop(0)
+    return attr in obj if len(attrs) == 0 or attr not in obj else has_attr_path(obj[attr], attrs)
+
+
+def get_attr_path(obj, attrs):
+    """
+    Get the attribute from the object
+    Example: to get the attribute path 'top.data.value' from the object do:
+        get_attr_path(obj, ['top', 'data', 'value'])
+    :param obj: The object to get the attribute from
+    :param attrs: The list of attributes to get
+    :return: The attribute value
+    """
+    attr = attrs.pop(0)
+    return obj.get(attr, None) if len(attrs) == 0 or attr not in obj else get_attr_path(obj[attr], attrs)
+
+
 def get_args():
     """
     Get the command line arguments
@@ -390,12 +414,16 @@ def get_args():
     parser = argparse.ArgumentParser(description='IP Network List Calculator')
     parser.set_defaults(add=[], sub=[])
     grp_input = parser.add_argument_group('Input options')
-    grp_input.add_argument('--add-list', dest='add', action=AddIPNetworksFromFile,
-                           help='File with networks to add')
-    grp_input.add_argument('--del-list', dest='sub', action=AddIPNetworksFromFile,
-                           help='File with networks to subtract')
     grp_input.add_argument('-a', '--add', dest='add', action=AddIPNetwork, help='Network to add')
     grp_input.add_argument('-d', '--del', dest='sub', action=AddIPNetwork, help='Network to subtract')
+    grp_input.add_argument('--add-list', dest='add_lists', action='append',
+                           help='File with networks to add', default=[])
+    grp_input.add_argument('--add-path', dest='add_paths', action='append',
+                           help='Path inside objects to add, if file is JSON or YAML')
+    grp_input.add_argument('--del-list', dest='sub_lists', action='append',
+                           help='File with networks to subtract', default=[])
+    grp_input.add_argument('--del-path', dest='sub_paths', action='append',
+                           help='Path inside objects to subtract, if file is JSON or YAML')
     grp_output = parser.add_argument_group('Output options')
     grp_output.add_argument('-o', '--output', help='Output file')
     grp_output_format = grp_output.add_mutually_exclusive_group()
@@ -419,6 +447,27 @@ def main(args):
     Main function
     :param args: Command line arguments
     """
+    # Load the networks from the files
+    for add_list in args.add_lists:
+        if is_yaml(add_list):
+            reader = YamlReader(add_list, args.add_paths)
+        elif is_json(add_list):
+            reader = JsonReader(add_list, args.add_paths)
+        elif is_csv(add_list):
+            reader = CsvReader(add_list)
+        else:
+            reader = TxtReader(add_list)
+        args.add.extend(list(reader))
+    for sub_list in args.sub_lists:
+        if is_yaml(sub_list):
+            reader = YamlReader(sub_list, args.sub_paths)
+        elif is_json(sub_list):
+            reader = JsonReader(sub_list, args.sub_paths)
+        elif is_csv(sub_list):
+            reader = CsvReader(sub_list)
+        else:
+            reader = TxtReader(sub_list)
+        args.sub.extend(list(reader))
     if not args.quiet:
         print(f'Networks to add: {",".join([str(net) for net in args.add])}')
         print(f'Networks to subtract: {",".join([str(net) for net in args.sub])}')
@@ -462,7 +511,8 @@ def main(args):
                                   is_unspecified="Unspecified")
                 print_networks(ipv6, ipv6_attrs)
         else:
-            print(f'Result: {",".join([str(net) for net in result])}')
+            print(f'IPv4 Networks: {",".join([str(net) for net in result if net.version == 4])}')
+            print(f'IPv6 Networks: {",".join([str(net) for net in result if net.version == 6])}')
     
     # for add_network in args.add:
     #    print(f'Subtracting from {add_network}')
