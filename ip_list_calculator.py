@@ -37,6 +37,7 @@ re_json = re.compile(r'(?i)\.json$')
 re_csv = re.compile(r'(?i)\.csv$')
 re_yaml = re.compile(r'(?i)\.ya?ml$')
 re_txt = re.compile(r'(?i)\.txt$')
+re_name = re.compile(r'(?i)^(?P<name>.*)\.(?P<ext>txt|json|ya?ml|txt)$')
 
 
 # ArgumetParser Classes & Functions
@@ -169,6 +170,9 @@ def _copy_items(items: list) -> list:
         return items[:]
     import copy
     return copy.copy(items)
+
+
+# Reader Classes
 
 
 class FileReader:
@@ -306,6 +310,94 @@ class YamlReader(FileReader):
                             yield network
 
 
+# Writer Classes
+
+class FileWriter:
+    """
+    Base class for file writers
+    """
+    
+    def __init__(self, file):
+        if file is None:
+            file = 'output'
+        if re_name.match(file):
+            self.file = re_name.match(file).group('name')
+        else:
+            self.file = file
+    
+    def write(self, networks):
+        pass
+
+
+class TxtWriter(FileWriter):
+    """
+    Writes networks to a text file
+    """
+    
+    def __init__(self, file):
+        super().__init__(file)
+        self.file = f'{self.file}.txt'
+    
+    def write(self, networks):
+        with open(self.file, 'w') as file:
+            if len(networks['IPv4']) > 0:
+                file.write("IPv4 Networks:\n")
+                for net in networks['IPv4']:
+                    file.write(f'{net}\n')
+            if len(networks['IPv6']) > 0:
+                file.write("IPv6 Networks:\n")
+                for net in networks['IPv6']:
+                    file.write(f'{net}\n')
+
+
+class CsvWriter(FileWriter):
+    """
+    Writes networks to a CSV file
+    """
+    
+    def __init__(self, file):
+        super().__init__(file)
+        self.file = f'{self.file}.csv'
+    
+    def write(self, networks):
+        with open(self.file, 'w') as file:
+            writer = csv.writer(file)
+            if len(networks['IPv4']) > 0:
+                for net in networks['IPv4']:
+                    writer.writerow([net])
+            if len(networks['IPv6']) > 0:
+                for net in networks['IPv6']:
+                    writer.writerow([net])
+
+
+class JsonWriter(FileWriter):
+    """
+    Writes networks to a JSON file
+    """
+    
+    def __init__(self, file):
+        super().__init__(file)
+        self.file = f'{self.file}.json'
+    
+    def write(self, networks):
+        with open(self.file, 'w') as file:
+            json.dump(networks, file, indent=2)
+
+
+class YamlWriter(FileWriter):
+    """
+    Writes networks to a YAML file
+    """
+    
+    def __init__(self, file):
+        super().__init__(file)
+        self.file = f'{self.file}.yaml'
+    
+    def write(self, networks):
+        with open(self.file, 'w') as file:
+            yaml.dump(networks, file)
+
+
 class AddIPNetwork(argparse.Action):
     """
     Add a network to the list of networks
@@ -370,7 +462,7 @@ def ip_network_exclude(network, exclude):
 
 def print_networks(networks, types):
     """
-    Print the networks
+    Print the networks separated by types
     :param networks: The networks to print
     :param types: The types of networks to print
     """
@@ -491,28 +583,48 @@ def main(args):
                 result.extend(add_networks)
     if args.merge:
         result = list(collapse_addresses(result))
+    result = dict(IPv4=[net for net in result if net.version == 4], IPv6=[net for net in result if net.version == 6])
     if not args.quiet:
         print('---')
         if args.sort:
-            ipv4 = [net for net in result if net.version == 4]
-            if len(ipv4) > 0:
+            if len(result['IPv4']) > 0:
                 print("IPv4 Networks:")
                 ipv4_attrs = dict(is_link_local="Link Local", is_private="Private",
                                   is_global="Global", is_loopback="Loopback", is_multicast="Multicast",
                                   is_reserved="Reserved",
                                   is_unspecified="Unspecified")
-                print_networks(ipv4, ipv4_attrs)
-            ipv6 = [net for net in result if net.version == 6]
-            if len(ipv6) > 0:
+                print_networks(result['IPv4'], ipv4_attrs)
+            if len(result['IPv6']) > 0:
                 print("IPv6 Networks:")
                 ipv6_attrs = dict(is_link_local="Link Local", is_site_local="Site Local", is_private="Private",
                                   is_global="Global", is_loopback="Loopback", is_multicast="Multicast",
                                   is_reserved="Reserved",
                                   is_unspecified="Unspecified")
-                print_networks(ipv6, ipv6_attrs)
+                print_networks(result['IPv6'], ipv6_attrs)
         else:
-            print(f'IPv4 Networks: {",".join([str(net) for net in result if net.version == 4])}')
-            print(f'IPv6 Networks: {",".join([str(net) for net in result if net.version == 6])}')
+            print(f'IPv4 Networks: {",".join([str(net) for net in result["IPv4"]])}')
+            print(f'IPv6 Networks: {",".join([str(net) for net in result["IPv6"]])}')
+    if args.output:
+        if args.json:
+            writer = JsonWriter(args.output)
+        elif args.csv:
+            writer = CsvWriter(args.output)
+        elif args.txt:
+            writer = TxtWriter(args.output)
+        elif args.yaml:
+            writer = YamlWriter(args.output)
+        else:
+            if is_txt(args.output):
+                writer = TxtWriter(args.output)
+            elif is_json(args.output):
+                writer = JsonWriter(args.output)
+            elif is_csv(args.output):
+                writer = CsvWriter(args.output)
+            elif is_yaml(args.output):
+                writer = YamlWriter(args.output)
+            else:
+                writer = TxtWriter(args.output)
+        writer.write(dict(IPv4=[str(net) for net in result['IPv4']], IPv6=[str(net) for net in result['IPv6']]))
     
     # for add_network in args.add:
     #    print(f'Subtracting from {add_network}')
