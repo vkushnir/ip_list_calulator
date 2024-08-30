@@ -1,25 +1,25 @@
-#  Калькулятор списков IP
+# IP List Calculator
 
-## Описание
+## Description
 
-Скрипт предназначен для генерации списка IP-адресов полученного в результате сложения или вычитания списка сетей.
+The script is designed to generate a list of IP addresses resulting from the addition or subtraction of a list of networks.
 
-Сети задаются в следующих форматах:
+Networks can be specified in the following formats:
 
-* `xxx.xxx.xxx.xxx` - одиночный IP-адрес
-* `ххх.ххх.ххх.ххх/yy` - сеть с маской CDIR
-* `ххх.ххх.ххх.ххх/zzz.zzz.zzz.zzz` - сеть с маской
-* `ххх.ххх.ххх.ххх-ххх.ххх.ххх.ххх` - диапазон IP-адресов
-* `ххх.ххх.ххх.ххх*nnn` - начало и количество IP-адресов
+* `xxx.xxx.xxx.xxx` - a single IP address
+* `xxx.xxx.xxx.xxx/yy` - a network with a CIDR mask
+* `xxx.xxx.xxx.xxx/zzz.zzz.zzz.zzz` - a network with a subnet mask
+* `xxx.xxx.xxx.xxx-xxx.xxx.xxx.xxx` - a range of IP addresses
+* `xxx.xxx.xxx.xxx*nnn` - the starting IP address and the number of IP addresses
 
-Аналогично можно задавать IPv6-сети.
+Similar formats can be used for IPv6 networks.
 
-* `xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx` - одиночный IP-адрес
-* `xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx/yy` - сеть с маской CDIR
-* `xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx-xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx` - диапазон IP-адресов
-* `xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx*nnn` - начало и количество IP-адресов
+* `xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx` - a single IP address
+* `xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx/yy` - a network with a CIDR mask
+* `xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx-xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx` - a range of IP addresses
+* `xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx*nnn` - the starting IP address and the number of IP addresses
 
-_Примеры:_
+_Examples:_
 
 * `127.0.0.1`
 * `192.168.0.0/16`
@@ -27,16 +27,16 @@ _Примеры:_
 * `192.168.0.0-192.168.0.255`
 * `172.16.0.0*4`
 
-## Параметры командной строки
+## Command Line Parameters
 
-Добавлять сети можно как по одной, так и списком.
+Networks can be added one at a time or as a list.
 
-### Сети
+### Networks
 
-* `-a`, `--add` - добавить сети
-* `-d`, `--del` - вычесть сети
+* `-a`, `--add` - add networks
+* `-d`, `--del` - subtract networks
 
-_Пример:_
+_Example:_
 
 ```bash
 ./ip_list_calculator.py --add 172.16.0.0/12 --del 172.17.0.0/24 --del 172.24.0.0/13
@@ -47,18 +47,17 @@ IPv4 Networks: 172.20.0.0/14,172.18.0.0/15,172.16.0.0/16,172.17.128.0/17,172.17.
 IPv6 Networks:
 ```
 
-### Списки сетей
+### Networks lists
 
-Списки сетей можно задавать в виде текстового файла, а также формате json или yaml.
+Network lists can be specified in a text file, as well as in JSON or YAML format.
 
-Имя файла с сетями задается параметром `--add-list` или `--del-list`.
-Если это структурированный файл, то путь к массиву сетей задается параметрами `--add-path` или `--del-path`.
+The filename containing the networks is specified with the `--add-list` or `--del-list` parameter. If this is a structured file, the path to the array of networks is specified with the `--add-path` or `--del-path` parameters.
 
-#### Текстовый файл
+#### Text File
 
-В текстовом файле каждая сеть задается на отдельной строке.
+In a text file, each network is specified on a separate line.
 
-_Пример: **tests/test.txt**_
+_Example: **tests/test.txt**_
 
 ```text
 192.168.12.0-192.168.12.255
@@ -81,9 +80,9 @@ IPv6 Networks:
 
 #### JSON
 
-В json-файле сети задаются в виде массива.
+In a JSON file, networks are specified in the form of an array.
 
-_Пример: **tests/test.json**_
+_Example: **tests/test.json**_
 
 ```json
 {
@@ -117,9 +116,9 @@ IPv6 Networks:
 
 #### YAML
 
-В yaml-файле сети задаются в виде массива. Аналогично json.
+In a YAML file, networks are specified in the form of an array, similarly to JSON.
 
-_Пример: **tests/test.yaml**_
+_Example: **tests/test.yaml**_
 
 ```yaml
 networks:
@@ -145,14 +144,14 @@ IPv4 Networks: 192.168.12.0/24,172.17.0.0/30,10.0.0.0/8,172.16.0.0/25,192.168.1.
 IPv6 Networks:
 ```
 
-### Вывод
+### Output
 
-* `--output` - имя файла для сохранения результата
+* `--output` - the name of the file to save the result
 
-Если указан только параметр `--output`, тип файла определяется по расширению файла. Если задан параметр `--txt`, `--json` или `--yaml`, то тип файла определяется по этому параметру.
+If only the `--output` parameter is specified, the file type is determined by the file extension. If the `--txt`, `--json`, or `--yaml` parameter is specified, the file type is determined by that parameter.
 
-Формат сохранения данных в файлы **JSON** и **YAML**:
-    
+The format for saving data in **JSON** and **YAML** files:
+
 ```json
 {
   "IPv4": [],
@@ -167,13 +166,13 @@ IPv6:
   -
 ```
 
-### Опции
+## Options
 
-* `-q`, `--quiet` - не выводить результат на экран
-* `-s`, `--sort` - сети при выводе на экран группируются по типу (**Loopback**, **Private**, **Public**, **Multicast**, **Reserved**, **Unassigned**).
-* `-m`, `--merge` - объединить сети если они пересекаются.
+ `-q`, `--quiet` - do not display the result on the screen
+ `-s`, `--sort` - networks are grouped by type when displayed on the screen (Loopback, Private, Public, Multicast, Reserved, Unassigned).
+ `-m`, `--merge` - merge networks if they overlap.
 
-_Примеры:_
+_Examples:_
 
 ```shell
 ./ip_list_calculator.py --add-list tests/test.json --add-path networks.ipv4 --add 127.0.0.1 --add 1.1.1.1 --add 8.8.8.8 --sort
