@@ -302,8 +302,8 @@ class YamlReader(FileReader):
         with open(self.file, 'r') as file:
             data_yml = yaml.safe_load(file)
             for path in self.paths:
-                if path in data_yml:
-                    data = data_yml[path]
+                if has_attr_path(data_yml, path.split('.')):
+                    data = get_attr_path(data_yml, path.split('.'))
                     for item in data:
                         networks = get_from_string(item.strip())
                         for network in networks:
@@ -523,7 +523,6 @@ def get_args():
     grp_output_format.add_argument('--csv', action='store_true', help='Output in CSV format')
     grp_output_format.add_argument('--txt', action='store_true', help='Output in TXT format')
     grp_output_format.add_argument('--yaml', action='store_true', help='Output in YAML format')
-    grp_output_format.add_argument('--stdout', action='store_true', help='Output to stdout')
     grp_output.add_argument('-s', '--sort', action='store_true', help='Sort output')
     grp_options = parser.add_argument_group('Options')
     grp_options.add_argument('--version', action='version', version='%(prog)s 1.0')
